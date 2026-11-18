@@ -32,16 +32,6 @@
             </intent-filter>
         </activity-alias>
 
-        <service
-            android:name=".PenTileService"
-            android:exported="true"
-            android:icon="@android:drawable/ic_menu_edit"
-            android:label="PipaPenKit"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
 
         <receiver
             android:name=".SecretCodeReceiver"
@@ -52,6 +42,13 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".OpenReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.pipa.penkit.OPEN" />
+            </intent-filter>
+        </receiver>
         <provider
             android:name=".ConfigProvider"
             android:authorities="com.pipa.penkit.config"
