@@ -1,6 +1,7 @@
 package com.pipa.penkit
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -145,12 +146,24 @@ fun HomeScreen() {
             SectionCard("外观", "桌面入口") {
                 SwitchRow(
                     title = "显示桌面图标",
-                    subtitle = "关闭后仍可从 LSPosed 模块页进入本应用",
+                    subtitle = "隐藏后仍可从下拉快捷开关或拨号码进入",
                     checked = iconVisible
                 ) {
                     iconVisible = it
                     LauncherIcon.setVisible(ctx, it)
+                    if (!it) {
+                        Toast.makeText(
+                            ctx,
+                            "图标已隐藏：下拉快捷开关点 PipaPenKit，或拨号 *#*#4242#*#*",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
+                Text(
+                    "隐藏后入口：① 快捷设置磁贴「PipaPenKit」 ② 拨号盘输入 *#*#4242#*#*",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             SectionCard("日志", "模块通过广播回传") {
