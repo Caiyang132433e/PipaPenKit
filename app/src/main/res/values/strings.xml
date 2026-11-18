@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PipaPenKit</string>
+    <string name="service_desc">监听手写笔尾部按键（F20/F19/F18），按配置拉起目标应用。</string>
+</resources>
