@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -71,6 +73,9 @@ fun HomeScreen() {
     var tDouble by remember { mutableStateOf(prefs.getString(Prefs.KEY_TARGET_DOUBLE, Prefs.DEFAULT_DOUBLE).orEmpty()) }
     var tLong by remember { mutableStateOf(prefs.getString(Prefs.KEY_TARGET_LONG, Prefs.DEFAULT_LONG).orEmpty()) }
 
+    var slotSingle by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_SINGLE, true)) }
+    var slotDouble by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_DOUBLE, true)) }
+    var slotLong by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_LONG, true)) }
     var penEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_PEN_ENABLE, true)) }
     var scribeEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SCRIBE_ENABLE, true)) }
     var ignoreGesture by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_IGNORE_KEY_GESTURE, false)) }
@@ -123,18 +128,21 @@ fun HomeScreen() {
                     prefs.edit().putBoolean(Prefs.KEY_RELAY_ENABLED, it).apply()
                 }
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                TargetSelector("单击（F20）", tSingle) {
-                    tSingle = it
-                    prefs.edit().putString(Prefs.KEY_TARGET_SINGLE, it).apply()
-                }
-                TargetSelector("双击（F19）", tDouble) {
-                    tDouble = it
-                    prefs.edit().putString(Prefs.KEY_TARGET_DOUBLE, it).apply()
-                }
-                TargetSelector("长按（F18）", tLong) {
-                    tLong = it
-                    prefs.edit().putString(Prefs.KEY_TARGET_LONG, it).apply()
-                }
+                SlotTarget(
+                    "单击（F20）", tSingle, slotSingle,
+                    { slotSingle = it; prefs.edit().putBoolean(Prefs.KEY_SLOT_SINGLE, it).apply() },
+                    { tSingle = it; prefs.edit().putString(Prefs.KEY_TARGET_SINGLE, it).apply() }
+                )
+                SlotTarget(
+                    "双击（F19）", tDouble, slotDouble,
+                    { slotDouble = it; prefs.edit().putBoolean(Prefs.KEY_SLOT_DOUBLE, it).apply() },
+                    { tDouble = it; prefs.edit().putString(Prefs.KEY_TARGET_DOUBLE, it).apply() }
+                )
+                SlotTarget(
+                    "长按（F18）", tLong, slotLong,
+                    { slotLong = it; prefs.edit().putBoolean(Prefs.KEY_SLOT_LONG, it).apply() },
+                    { tLong = it; prefs.edit().putString(Prefs.KEY_TARGET_LONG, it).apply() }
+                )
             }
 
             SectionCard("手写笔", "需要模块生效，改动后重启") {
@@ -327,5 +335,25 @@ fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Bool
             )
         }
         Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+@Composable
+fun SlotTarget(
+    label: String,
+    value: String,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    onChange: (String) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(Modifier.weight(1f)) {
+            TargetSelector(label, value, onChange)
+        }
+        Switch(checked = enabled, onCheckedChange = onEnabledChange)
     }
 }

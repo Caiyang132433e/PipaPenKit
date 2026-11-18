@@ -42,6 +42,9 @@ public final class ConfigProvider extends ContentProvider {
             out.putBoolean("scribe_enable", p.getBoolean("scribe_enable", true));
             out.putBoolean("ignore_key_gesture", p.getBoolean("ignore_key_gesture", false));
             out.putInt("driver_version", p.getInt("driver_version", 2));
+            out.putBoolean("slot_single", p.getBoolean("slot_single", true));
+            out.putBoolean("slot_double", p.getBoolean("slot_double", true));
+            out.putBoolean("slot_long", p.getBoolean("slot_long", true));
             return out;
         }
         if (!"target".equals(method)) {

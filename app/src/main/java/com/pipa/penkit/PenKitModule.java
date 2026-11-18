@@ -42,6 +42,9 @@ public final class PenKitModule extends XposedModule {
     private static volatile boolean sScribeEnable = true;
     private static volatile boolean sIgnoreKeyGesture = false;
     private static volatile int sDriverVersion = 2;
+    private static volatile boolean sSlotSingle = true;
+    private static volatile boolean sSlotDouble = true;
+    private static volatile boolean sSlotLong = true;
 
     @Override
     public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
@@ -93,8 +96,14 @@ public final class PenKitModule extends XposedModule {
                             }
                             int slot = (scan == KEY_F20 || code == KEY_F20) ? 1
                                     : (scan == KEY_F19 || code == KEY_F19) ? 2 : 3;
-                            launch(ctx, slot);
-                            return 0L;
+                            boolean enabled = slot == 1 ? sSlotSingle : slot == 2 ? sSlotDouble : sSlotLong;
+                            if (!enabled) {
+                                return chain.proceed();
+                            }
+                            if (launch(ctx, slot)) {
+                                return 0L;
+                            }
+                            return chain.proceed();
                         });
                 log(Log.INFO, TAG, "hooked " + className + "#" + method.getName());
                 return;
@@ -252,19 +261,22 @@ public final class PenKitModule extends XposedModule {
         sScribeEnable = b.getBoolean("scribe_enable", true);
         sIgnoreKeyGesture = b.getBoolean("ignore_key_gesture", false);
         sDriverVersion = b.getInt("driver_version", 2);
+        sSlotSingle = b.getBoolean("slot_single", true);
+        sSlotDouble = b.getBoolean("slot_double", true);
+        sSlotLong = b.getBoolean("slot_long", true);
         log(Log.INFO, TAG, "config pen=" + sPenEnable + " scribe=" + sScribeEnable
                 + " ignoreGesture=" + sIgnoreKeyGesture + " ver=" + sDriverVersion);
     }
 
     // ── launch ─────────────────────────────────────────────────
 
-    private void launch(Context ctx, int slot) {
+    private boolean launch(Context ctx, int slot) {
         loadConfig(ctx);
         Bundle b = callProvider(ctx, "target", String.valueOf(slot));
         String target = b == null ? null : b.getString("target");
         if (target == null || target.trim().isEmpty()) {
             report(ctx, "slot " + slot + ": 未配置目标");
-            return;
+            return false;
         }
         target = target.trim();
         try {
@@ -277,13 +289,15 @@ public final class PenKitModule extends XposedModule {
             }
             if (intent == null) {
                 report(ctx, "slot " + slot + ": 找不到 " + target);
-                return;
+                return false;
             }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
             ctx.startActivity(intent);
             report(ctx, "slot " + slot + " -> " + target);
+            return true;
         } catch (Throwable t) {
             report(ctx, "slot " + slot + " 启动失败: " + t);
+            return false;
         }
     }
 

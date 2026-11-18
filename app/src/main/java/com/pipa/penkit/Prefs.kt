@@ -16,6 +16,10 @@ object Prefs {
     const val KEY_IGNORE_KEY_GESTURE = "ignore_key_gesture"
     const val KEY_DRIVER_VERSION = "driver_version"
 
+    const val KEY_SLOT_SINGLE = "slot_single"
+    const val KEY_SLOT_DOUBLE = "slot_double"
+    const val KEY_SLOT_LONG = "slot_long"
+
     const val PRESET_NOTES = "com.miui.notes"
     const val PRESET_DRAW = "com.shezik.drawanywhere"
 
