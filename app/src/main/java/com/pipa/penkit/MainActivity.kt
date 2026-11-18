@@ -1,7 +1,6 @@
 package com.pipa.penkit
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -14,10 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -69,9 +70,15 @@ fun HomeScreen() {
     var tSingle by remember { mutableStateOf(prefs.getString(Prefs.KEY_TARGET_SINGLE, Prefs.DEFAULT_SINGLE).orEmpty()) }
     var tDouble by remember { mutableStateOf(prefs.getString(Prefs.KEY_TARGET_DOUBLE, Prefs.DEFAULT_DOUBLE).orEmpty()) }
     var tLong by remember { mutableStateOf(prefs.getString(Prefs.KEY_TARGET_LONG, Prefs.DEFAULT_LONG).orEmpty()) }
+
+    var penEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_PEN_ENABLE, true)) }
+    var scribeEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SCRIBE_ENABLE, true)) }
+    var ignoreGesture by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_IGNORE_KEY_GESTURE, false)) }
+    var driverVersion by remember { mutableStateOf(prefs.getInt(Prefs.KEY_DRIVER_VERSION, 2)) }
+
+    var iconVisible by remember { mutableStateOf(LauncherIcon.isVisible(ctx)) }
     var logs by remember { mutableStateOf(LogStore.all(ctx)) }
     var heartbeat by remember { mutableStateOf(prefs.getLong("hook_heartbeat", 0L)) }
-    var iconVisible by remember { mutableStateOf(LauncherIcon.isVisible(ctx)) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -79,15 +86,6 @@ fun HomeScreen() {
             logs = LogStore.all(ctx)
             heartbeat = prefs.getLong("hook_heartbeat", 0L)
         }
-    }
-
-    fun setAll(v: String) {
-        tSingle = v; tDouble = v; tLong = v
-        prefs.edit()
-            .putString(Prefs.KEY_TARGET_SINGLE, v)
-            .putString(Prefs.KEY_TARGET_DOUBLE, v)
-            .putString(Prefs.KEY_TARGET_LONG, v)
-            .apply()
     }
 
     Scaffold(
@@ -119,51 +117,51 @@ fun HomeScreen() {
         ) {
             StatusCard(heartbeat)
 
-            SectionCard("速记键", "笔尾蓝牙键 F20 / F19 / F18") {
-                SwitchRow(
-                    title = "启用映射",
-                    subtitle = "由系统模块直接拦截，无需无障碍",
-                    checked = relay
-                ) {
+            SectionCard("速记键", "笔尾蓝牙键：单击 F20 / 双击 F19 / 长按 F18") {
+                SwitchRow("启用映射", "由系统模块直接拦截，无需无障碍", relay) {
                     relay = it
                     prefs.edit().putBoolean(Prefs.KEY_RELAY_ENABLED, it).apply()
                 }
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                Text(
-                    "按下尾部键时拉起的目标：包名或 包名/.Activity",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                TargetField("单击（F20）", tSingle) { tSingle = it; prefs.edit().putString(Prefs.KEY_TARGET_SINGLE, it).apply() }
-                TargetField("双击（F19）", tDouble) { tDouble = it; prefs.edit().putString(Prefs.KEY_TARGET_DOUBLE, it).apply() }
-                TargetField("长按（F18）", tLong) { tLong = it; prefs.edit().putString(Prefs.KEY_TARGET_LONG, it).apply() }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AssistChip(onClick = { setAll("com.shezik.drawanywhere") }, label = { Text("DrawAnywhere") })
-                    AssistChip(onClick = { setAll("com.miui.notes") }, label = { Text("小米笔记") })
+                TargetSelector("单击（F20）", tSingle) {
+                    tSingle = it
+                    prefs.edit().putString(Prefs.KEY_TARGET_SINGLE, it).apply()
+                }
+                TargetSelector("双击（F19）", tDouble) {
+                    tDouble = it
+                    prefs.edit().putString(Prefs.KEY_TARGET_DOUBLE, it).apply()
+                }
+                TargetSelector("长按（F18）", tLong) {
+                    tLong = it
+                    prefs.edit().putString(Prefs.KEY_TARGET_LONG, it).apply()
+                }
+            }
+
+            SectionCard("手写笔", "需要模块生效，改动后重启") {
+                SwitchRow("去除触控笔蓝牙限制", "非官方笔也能进入笔模式", penEnable) {
+                    penEnable = it
+                    prefs.edit().putBoolean(Prefs.KEY_PEN_ENABLE, it).apply()
+                }
+                SwitchRow("去除随手写蓝牙限制", "让随手写认这支笔", scribeEnable) {
+                    scribeEnable = it
+                    prefs.edit().putBoolean(Prefs.KEY_SCRIBE_ENABLE, it).apply()
+                }
+                SwitchRow("忽略触控笔按键手势", "不让系统吞掉笔键", ignoreGesture) {
+                    ignoreGesture = it
+                    prefs.edit().putBoolean(Prefs.KEY_IGNORE_KEY_GESTURE, it).apply()
+                }
+                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                VersionSelector(driverVersion) {
+                    driverVersion = it
+                    prefs.edit().putInt(Prefs.KEY_DRIVER_VERSION, it).apply()
                 }
             }
 
             SectionCard("外观", "桌面入口") {
-                SwitchRow(
-                    title = "显示桌面图标",
-                    subtitle = "隐藏后从 LSPosed 模块页打开",
-                    checked = iconVisible
-                ) {
+                SwitchRow("显示桌面图标", "隐藏后从 LSPosed 模块页进入", iconVisible) {
                     iconVisible = it
                     LauncherIcon.setVisible(ctx, it)
-                    if (!it) {
-                        Toast.makeText(
-                            ctx,
-                            "图标已隐藏，可从 LSPosed 模块页进入",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
                 }
-                Text(
-                    "隐藏后入口：LSPosed 管理器 → 模块 → PipaPenKit",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
             SectionCard("日志", "模块通过广播回传") {
@@ -178,10 +176,97 @@ fun HomeScreen() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
-                    logs.take(14).forEach {
-                        Text(it, style = MaterialTheme.typography.bodySmall)
-                    }
+                    logs.take(14).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TargetSelector(label: String, value: String, onChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val presets = listOf(
+        "速记（小米笔记）" to Prefs.PRESET_NOTES,
+        "DrawAnywhere" to Prefs.PRESET_DRAW,
+    )
+    val preset = presets.firstOrNull { it.second == value }
+    val isCustom = preset == null
+    val display = preset?.first ?: "自定义"
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+            OutlinedTextField(
+                value = display,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(label) },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                presets.forEach { (name, pkg) ->
+                    DropdownMenuItem(
+                        text = { Text(name) },
+                        onClick = {
+                            onChange(pkg)
+                            expanded = false
+                        }
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text("自定义") },
+                    onClick = {
+                        onChange("")
+                        expanded = false
+                    }
+                )
+            }
+        }
+        if (isCustom) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onChange,
+                label = { Text("包名或 包名/.Activity") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VersionSelector(value: Int, onChange: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = "驱动版本 $value",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("触控笔驱动版本") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            listOf(1, 2, 3).forEach { v ->
+                DropdownMenuItem(
+                    text = { Text("版本 $v") },
+                    onClick = {
+                        onChange(v)
+                        expanded = false
+                    }
+                )
             }
         }
     }
@@ -243,15 +328,4 @@ fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Bool
         }
         Switch(checked = checked, onCheckedChange = onChange)
     }
-}
-
-@Composable
-fun TargetField(label: String, value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = { Text(label) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
 }

@@ -11,9 +11,17 @@ object Prefs {
     const val KEY_TARGET_DOUBLE = "target_double"
     const val KEY_TARGET_LONG = "target_long"
 
-    const val DEFAULT_SINGLE = "com.shezik.drawanywhere"
-    const val DEFAULT_DOUBLE = "com.miui.notes"
-    const val DEFAULT_LONG = "com.miui.notes"
+    const val KEY_PEN_ENABLE = "pen_enable"
+    const val KEY_SCRIBE_ENABLE = "scribe_enable"
+    const val KEY_IGNORE_KEY_GESTURE = "ignore_key_gesture"
+    const val KEY_DRIVER_VERSION = "driver_version"
+
+    const val PRESET_NOTES = "com.miui.notes"
+    const val PRESET_DRAW = "com.shezik.drawanywhere"
+
+    const val DEFAULT_SINGLE = PRESET_DRAW
+    const val DEFAULT_DOUBLE = PRESET_DRAW
+    const val DEFAULT_LONG = PRESET_DRAW
 
     fun get(ctx: Context): SharedPreferences =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)

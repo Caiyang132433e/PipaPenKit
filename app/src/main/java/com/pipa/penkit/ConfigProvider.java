@@ -7,7 +7,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 
-/** Exposes quick-key config and receives hook heartbeats from system_server. */
+/** Exposes quick-key targets and module toggles to the system_server hook. */
 public final class ConfigProvider extends ContentProvider {
 
     public static final String AUTHORITY = "com.pipa.penkit.config";
@@ -25,16 +25,23 @@ public final class ConfigProvider extends ContentProvider {
         if (ctx == null) {
             return out;
         }
+        android.content.SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         if ("heartbeat".equals(method)) {
             long now = System.currentTimeMillis();
-            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit().putLong("hook_heartbeat", now).apply();
+            p.edit().putLong("hook_heartbeat", now).apply();
             out.putLong("at", now);
             return out;
         }
         if ("enabled".equals(method)) {
-            out.putBoolean("enabled", ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .getBoolean("relay_enabled", true));
+            out.putBoolean("enabled", p.getBoolean("relay_enabled", true));
+            return out;
+        }
+        if ("config".equals(method)) {
+            out.putBoolean("relay_enabled", p.getBoolean("relay_enabled", true));
+            out.putBoolean("pen_enable", p.getBoolean("pen_enable", true));
+            out.putBoolean("scribe_enable", p.getBoolean("scribe_enable", true));
+            out.putBoolean("ignore_key_gesture", p.getBoolean("ignore_key_gesture", false));
+            out.putInt("driver_version", p.getInt("driver_version", 2));
             return out;
         }
         if (!"target".equals(method)) {
@@ -46,7 +53,7 @@ public final class ConfigProvider extends ContentProvider {
         } catch (NumberFormatException ignored) {
         }
         String key = slot == 1 ? "target_single" : slot == 2 ? "target_double" : "target_long";
-        String value = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(key, "");
+        String value = p.getString(key, "");
         out.putString("target", value == null ? "" : value);
         return out;
     }
