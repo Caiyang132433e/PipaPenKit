@@ -146,7 +146,7 @@ fun HomeScreen() {
             SectionCard("外观", "桌面入口") {
                 SwitchRow(
                     title = "显示桌面图标",
-                    subtitle = "隐藏后可用浏览器打开 pipa://open 重新进入",
+                    subtitle = "隐藏后从 LSPosed 模块页打开",
                     checked = iconVisible
                 ) {
                     iconVisible = it
@@ -154,13 +154,13 @@ fun HomeScreen() {
                     if (!it) {
                         Toast.makeText(
                             ctx,
-                            "图标已隐藏：浏览器访问 pipa://open 可重新打开",
+                            "图标已隐藏，可从 LSPosed 模块页进入",
                             Toast.LENGTH_LONG
                         ).show()
                     }
                 }
                 Text(
-                    "隐藏后的入口：浏览器打开 pipa://open（或 adb 广播 com.pipa.penkit.OPEN）",
+                    "隐藏后入口：LSPosed 管理器 → 模块 → PipaPenKit",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
