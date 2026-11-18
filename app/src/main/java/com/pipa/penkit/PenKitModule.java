@@ -240,9 +240,9 @@ public final class PenKitModule extends XposedModule {
                         .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                         .intercept(chain -> {
                             if (sRestoreEsc) {
-                                Object[] args = chain.getArgs();
-                                if (args != null && args.length > 0) {
-                                    args[0] = Boolean.FALSE;
+                                java.util.List<Object> args = chain.getArgs();
+                                if (args != null && !args.isEmpty()) {
+                                    args.set(0, Boolean.FALSE);
                                 }
                             }
                             return chain.proceed();
