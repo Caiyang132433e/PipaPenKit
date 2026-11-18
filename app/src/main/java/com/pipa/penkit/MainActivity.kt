@@ -89,6 +89,7 @@ fun HomeScreen() {
     var noMagicPointer by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_NO_MAGIC_POINTER, false)) }
     var restoreEsc by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_RESTORE_ESC, false)) }
     var fingerNum4 by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_FINGER_NUM_4, false)) }
+    var fixGestureFilter by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_FIX_GESTURE_FILTER, false)) }
     var disableFixedOrientation by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, false)) }
 
     var iconVisible by remember { mutableStateOf(LauncherIcon.isVisible(ctx)) }
@@ -193,7 +194,10 @@ fun HomeScreen() {
                     fingerNum4 = it
                     prefs.edit().putBoolean(Prefs.KEY_FINGER_NUM_4, it).apply()
                 }
-                SwitchRow("禁用固定屏幕方向", "对所有应用生效", disableFixedOrientation) {
+                SwitchRow("修复三指手势被屏蔽", "按系统设置恢复三指/四指手势", fixGestureFilter) {
+                    fixGestureFilter = it
+                    prefs.edit().putBoolean(Prefs.KEY_FIX_GESTURE_FILTER, it).apply()
+                }                SwitchRow("禁用固定屏幕方向", "对所有应用生效", disableFixedOrientation) {
                     disableFixedOrientation = it
                     prefs.edit().putBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, it).apply()
                 }

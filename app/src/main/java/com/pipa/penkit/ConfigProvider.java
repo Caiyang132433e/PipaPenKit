@@ -49,6 +49,7 @@ public final class ConfigProvider extends ContentProvider {
             out.putBoolean("restore_esc", p.getBoolean("sys_restore_esc", false));
             out.putBoolean("finger_num_4", p.getBoolean("sys_finger_num_4", false));
             out.putBoolean("disable_fixed_orientation", p.getBoolean("sys_disable_fixed_orientation", false));
+            out.putBoolean("fix_gesture_filter", p.getBoolean("sys_fix_gesture_filter", false));
             return out;
         }
         if (!"target".equals(method)) {

@@ -49,11 +49,81 @@ public final class PenKitModule extends XposedModule {
     private static volatile boolean sRestoreEsc = false;
     private static volatile boolean sFingerNum4 = false;
     private static volatile boolean sDisableFixedOrientation = false;
+    private static volatile boolean sFixGestureFilter = false;
 
     @Override
     public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
-        log(Log.INFO, TAG, "loaded in " + param.getProcessName()
-                + " systemServer=" + param.isSystemServer());
+        String process = param.getProcessName();
+        log(Log.INFO, TAG, "loaded in " + process + " systemServer=" + param.isSystemServer());
+        if (!param.isSystemServer() && "com.miui.home".equals(process)) {
+            installHomeHooks(param.getClassLoader());
+        }
+    }
+
+    /** Hooks that must live inside com.miui.home. */
+    private void installHomeHooks(ClassLoader cl) {
+        try {
+            Class<?> c = Class.forName("com.miui.home.recents.GestureModeApp", false, cl);
+            Method target = null;
+            for (Method method : c.getDeclaredMethods()) {
+                if ("isSupportGestureOperation".equals(method.getName())) {
+                    target = method;
+                    break;
+                }
+            }
+            if (target == null) {
+                log(Log.WARN, TAG, "GestureModeApp#isSupportGestureOperation missing");
+                return;
+            }
+            hook(target).setId("penkit-gesture-filter")
+                    .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                    .intercept(chain -> {
+                        if (!sFixGestureFilter) {
+                            return chain.proceed();
+                        }
+                        Object motion = null;
+                        for (Object arg : chain.getArgs()) {
+                            if (arg instanceof android.view.MotionEvent) {
+                                motion = arg;
+                                break;
+                            }
+                        }
+                        if (motion == null) {
+                            return chain.proceed();
+                        }
+                        android.view.MotionEvent event = (android.view.MotionEvent) motion;
+                        boolean touch = event.getDevice() == null
+                                || event.getDevice().supportsSource(
+                                        android.view.InputDevice.SOURCE_TOUCHSCREEN);
+                        if (!touch || event.getPointerCount() < 3) {
+                            return chain.proceed();
+                        }
+                        return Boolean.valueOf(readThreeGestureSetting());
+                    });
+            log(Log.INFO, TAG, "hooked GestureModeApp#isSupportGestureOperation");
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "no home gesture hook: " + t);
+        }
+    }
+
+    private boolean readThreeGestureSetting() {
+        try {
+            Class<?> at = Class.forName("android.app.ActivityThread");
+            Object thread = at.getDeclaredMethod("currentActivityThread").invoke(null);
+            android.content.Context ctx = null;
+            if (thread != null) {
+                ctx = (android.content.Context) at.getDeclaredMethod("getApplication")
+                        .invoke(thread);
+            }
+            if (ctx == null) {
+                return true;
+            }
+            String v = android.provider.Settings.System.getString(
+                    ctx.getContentResolver(), "enable_three_gesture");
+            return v != null && Integer.parseInt(v) > 0;
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     @Override
@@ -205,18 +275,30 @@ public final class PenKitModule extends XposedModule {
     }
 
     private void installSystemTweaks(ClassLoader cl) {
-        // 1. Magic Pointer off
-        try {
-            Class<?> c = Class.forName("android.magicpointer.util.MiuiMagicPointerUtils", false, cl);
-            Method m = findMethod(c, "isEnable");
-            if (m != null) {
-                hook(m).setId("penkit-magic-pointer-util")
-                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                        .intercept(chain -> sNoMagicPointer ? Boolean.FALSE : chain.proceed());
-                log(Log.INFO, TAG, "hooked MiuiMagicPointerUtils#isEnable");
+        // 1. Magic Pointer off (class names differ between MIUI versions)
+        String[] mpClasses = {
+                "android.magicpointer.MiuiMagicPointerStub",
+                "com.android.server.input.MiuiMagicPointerServiceStubHead",
+                "android.magicpointer.util.MiuiMagicPointerUtils",
+        };
+        for (String mp : mpClasses) {
+            try {
+                Class<?> c = Class.forName(mp, false, cl);
+                int count = 0;
+                for (Method method : c.getDeclaredMethods()) {
+                    String n = method.getName();
+                    if (!"isEnable".equals(n) && !"isSupportMagicPointer".equals(n)) {
+                        continue;
+                    }
+                    hook(method).setId("penkit-magic-pointer-" + n)
+                            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                            .intercept(chain -> sNoMagicPointer ? Boolean.FALSE : chain.proceed());
+                    count++;
+                }
+                log(Log.INFO, TAG, "magic pointer " + mp + ": hooked " + count);
+            } catch (Throwable t) {
+                log(Log.WARN, TAG, "magic pointer class missing: " + mp);
             }
-        } catch (Throwable t) {
-            log(Log.WARN, TAG, "no magic pointer util: " + t);
         }
         try {
             Class<?> c = Class.forName("com.android.server.SystemServerImpl", false, cl);
@@ -354,6 +436,7 @@ public final class PenKitModule extends XposedModule {
         sRestoreEsc = b.getBoolean("restore_esc", false);
         sFingerNum4 = b.getBoolean("finger_num_4", false);
         sDisableFixedOrientation = b.getBoolean("disable_fixed_orientation", false);
+        sFixGestureFilter = b.getBoolean("fix_gesture_filter", false);
         log(Log.INFO, TAG, "config pen=" + sPenEnable + " scribe=" + sScribeEnable
                 + " ignoreGesture=" + sIgnoreKeyGesture + " ver=" + sDriverVersion);
     }

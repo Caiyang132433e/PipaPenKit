@@ -23,6 +23,7 @@ object Prefs {
     const val KEY_RESTORE_ESC = "sys_restore_esc"
     const val KEY_FINGER_NUM_4 = "sys_finger_num_4"
     const val KEY_DISABLE_FIXED_ORIENTATION = "sys_disable_fixed_orientation"
+    const val KEY_FIX_GESTURE_FILTER = "sys_fix_gesture_filter"
 
     const val PRESET_NOTES = "com.miui.notes"
     const val PRESET_DRAW = "com.shezik.drawanywhere"
