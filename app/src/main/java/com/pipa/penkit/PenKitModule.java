@@ -91,7 +91,7 @@ public final class PenKitModule extends XposedModule {
                             return 0L;
                         });
                 log(Log.INFO, TAG, "hooked " + className + "#" + method.getName());
-                heartbeatLater(getSystemContext());
+                heartbeatLater(systemContext());
                 return;
             } catch (Throwable t) {
                 log(Log.WARN, TAG, "cannot hook " + className + ": " + t);
@@ -127,28 +127,29 @@ public final class PenKitModule extends XposedModule {
     }
 
     private void heartbeat(Context ctx) {
+        heartbeatAttempt(ctx, 0);
+    }
+
+    private void heartbeatAttempt(Context ctx, int attempt) {
         if (ctx == null) {
             return;
         }
-        try {
-            callProvider(ctx, "heartbeat", null);
+        Bundle result = callProvider(ctx, "heartbeat", null);
+        if (result != null) {
             report(ctx, "hook 已安装");
-        } catch (Throwable t) {
-            log(Log.WARN, TAG, "heartbeat failed", t);
+            return;
+        }
+        if (attempt < 8) {
+            try {
+                new android.os.Handler(android.os.Looper.getMainLooper())
+                        .postDelayed(() -> heartbeatAttempt(ctx, attempt + 1), 15000L);
+            } catch (Throwable t) {
+                log(Log.WARN, TAG, "cannot reschedule heartbeat", t);
+            }
         }
     }
 
-    private static Context getSystemContext() {
-        try {
-            Class<?> at = Class.forName("android.app.ActivityThread");
-            Method current = at.getDeclaredMethod("currentActivityThread");
-            Object thread = current.invoke(null);
-            Method getSystemContext = at.getDeclaredMethod("getSystemContext");
-            return (Context) getSystemContext.invoke(thread);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
+
 
     private Bundle callProvider(Context ctx, String method, String arg) {
         try {
@@ -199,20 +200,46 @@ public final class PenKitModule extends XposedModule {
         }
     }
 
+    private static volatile Context sSystemContext;
+
     private static Context resolveContext(Object windowManager) {
-        if (windowManager == null) {
-            return null;
+        Context ctx = null;
+        if (windowManager != null) {
+            try {
+                Field field = sContextField;
+                if (field == null) {
+                    Class<?> c = windowManager.getClass();
+                    while (c != null && field == null) {
+                        try {
+                            field = c.getDeclaredField("mContext");
+                            field.setAccessible(true);
+                        } catch (NoSuchFieldException ignored) {
+                            c = c.getSuperclass();
+                        }
+                    }
+                    sContextField = field;
+                }
+                if (field != null) {
+                    ctx = (Context) field.get(windowManager);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return ctx != null ? ctx : systemContext();
+    }
+
+    private static Context systemContext() {
+        if (sSystemContext != null) {
+            return sSystemContext;
         }
         try {
-            Field field = sContextField;
-            if (field == null) {
-                field = windowManager.getClass().getDeclaredField("mContext");
-                field.setAccessible(true);
-                sContextField = field;
+            Class<?> at = Class.forName("android.app.ActivityThread");
+            Object thread = at.getDeclaredMethod("currentActivityThread").invoke(null);
+            if (thread != null) {
+                sSystemContext = (Context) at.getDeclaredMethod("getSystemContext").invoke(thread);
             }
-            return (Context) field.get(windowManager);
         } catch (Throwable ignored) {
-            return null;
         }
+        return sSystemContext;
     }
 }
