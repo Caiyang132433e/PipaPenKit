@@ -6,7 +6,7 @@
         android:icon="@android:drawable/ic_menu_edit"
         android:label="PipaPenKit"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault.DayNight">
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
         <!-- CATEGORY_INFO: resolvable by LSPosed as the module entry, never shown in the launcher -->
         <activity

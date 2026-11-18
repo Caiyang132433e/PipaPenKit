@@ -19,6 +19,10 @@ object Prefs {
     const val KEY_SLOT_SINGLE = "slot_single"
     const val KEY_SLOT_DOUBLE = "slot_double"
     const val KEY_SLOT_LONG = "slot_long"
+    const val KEY_NO_MAGIC_POINTER = "sys_no_magic_pointer"
+    const val KEY_RESTORE_ESC = "sys_restore_esc"
+    const val KEY_FINGER_NUM_4 = "sys_finger_num_4"
+    const val KEY_DISABLE_FIXED_ORIENTATION = "sys_disable_fixed_orientation"
 
     const val PRESET_NOTES = "com.miui.notes"
     const val PRESET_DRAW = "com.shezik.drawanywhere"

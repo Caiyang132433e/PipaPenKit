@@ -76,6 +76,10 @@ fun HomeScreen() {
     var slotSingle by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_SINGLE, true)) }
     var slotDouble by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_DOUBLE, true)) }
     var slotLong by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_LONG, true)) }
+    var noMagicPointer by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_NO_MAGIC_POINTER, false)) }
+    var restoreEsc by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_RESTORE_ESC, false)) }
+    var fingerNum4 by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_FINGER_NUM_4, false)) }
+    var disableFixedOrientation by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, false)) }
     var penEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_PEN_ENABLE, true)) }
     var scribeEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SCRIBE_ENABLE, true)) }
     var ignoreGesture by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_IGNORE_KEY_GESTURE, false)) }
@@ -165,6 +169,24 @@ fun HomeScreen() {
                 }
             }
 
+            SectionCard("系统增强", "移植自 MaxMiPad，改动后重启") {
+                SwitchRow("关闭 Magic Pointer", "停用手写笔的魔法指针服务", noMagicPointer) {
+                    noMagicPointer = it
+                    prefs.edit().putBoolean(Prefs.KEY_NO_MAGIC_POINTER, it).apply()
+                }
+                SwitchRow("恢复 ESC 键", "阻止系统把 ESC 映射成返回", restoreEsc) {
+                    restoreEsc = it
+                    prefs.edit().putBoolean(Prefs.KEY_RESTORE_ESC, it).apply()
+                }
+                SwitchRow("三指手势改为四指", "降低误触", fingerNum4) {
+                    fingerNum4 = it
+                    prefs.edit().putBoolean(Prefs.KEY_FINGER_NUM_4, it).apply()
+                }
+                SwitchRow("禁用固定屏幕方向", "对所有应用生效", disableFixedOrientation) {
+                    disableFixedOrientation = it
+                    prefs.edit().putBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, it).apply()
+                }
+            }
             SectionCard("外观", "桌面入口") {
                 SwitchRow("显示桌面图标", "隐藏后从 LSPosed 模块页进入", iconVisible) {
                     iconVisible = it

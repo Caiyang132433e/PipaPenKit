@@ -45,6 +45,10 @@ public final class PenKitModule extends XposedModule {
     private static volatile boolean sSlotSingle = true;
     private static volatile boolean sSlotDouble = true;
     private static volatile boolean sSlotLong = true;
+    private static volatile boolean sNoMagicPointer = false;
+    private static volatile boolean sRestoreEsc = false;
+    private static volatile boolean sFingerNum4 = false;
+    private static volatile boolean sDisableFixedOrientation = false;
 
     @Override
     public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
@@ -59,6 +63,7 @@ public final class PenKitModule extends XposedModule {
         installScribeHooks(cl);
         installKeyGestureHooks(cl);
         installPenListenerHook(cl);
+        installSystemTweaks(cl);
         heartbeatLater(systemContext());
     }
 
@@ -199,6 +204,87 @@ public final class PenKitModule extends XposedModule {
         }
     }
 
+    private void installSystemTweaks(ClassLoader cl) {
+        // 1. Magic Pointer off
+        try {
+            Class<?> c = Class.forName("android.magicpointer.util.MiuiMagicPointerUtils", false, cl);
+            Method m = findMethod(c, "isEnable");
+            if (m != null) {
+                hook(m).setId("penkit-magic-pointer-util")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> sNoMagicPointer ? Boolean.FALSE : chain.proceed());
+                log(Log.INFO, TAG, "hooked MiuiMagicPointerUtils#isEnable");
+            }
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "no magic pointer util: " + t);
+        }
+        try {
+            Class<?> c = Class.forName("com.android.server.SystemServerImpl", false, cl);
+            Method m = findMethod(c, "addMagicPointerManagerService");
+            if (m != null) {
+                hook(m).setId("penkit-magic-pointer-service")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> sNoMagicPointer ? null : chain.proceed());
+                log(Log.INFO, TAG, "hooked SystemServerImpl#addMagicPointerManagerService");
+            }
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "no magic pointer service: " + t);
+        }
+
+        // 2. ESC key restored (stop MIUI forcing it to BACK)
+        try {
+            Class<?> c = Class.forName("com.android.server.input.config.InputCommonConfig", false, cl);
+            Method m = findMethod(c, "setPadMode", boolean.class);
+            if (m != null) {
+                hook(m).setId("penkit-restore-esc")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> {
+                            if (sRestoreEsc) {
+                                Object[] args = chain.getArgs();
+                                if (args != null && args.length > 0) {
+                                    args[0] = Boolean.FALSE;
+                                }
+                            }
+                            return chain.proceed();
+                        });
+                log(Log.INFO, TAG, "hooked InputCommonConfig#setPadMode");
+            }
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "no InputCommonConfig: " + t);
+        }
+
+        // 3. three-finger gestures need four fingers
+        try {
+            Class<?> c = Class.forName(
+                    "com.miui.server.input.gesture.multifingergesture.gesture.BaseMiuiMultiFingerGesture",
+                    false, cl);
+            Method m = findMethod(c, "getFunctionNeedFingerNum");
+            if (m != null) {
+                hook(m).setId("penkit-finger-num")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> sFingerNum4 ? Integer.valueOf(4) : chain.proceed());
+                log(Log.INFO, TAG, "hooked BaseMiuiMultiFingerGesture#getFunctionNeedFingerNum");
+            }
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "no multi finger gesture class: " + t);
+        }
+
+        // 4. disable fixed orientation for all apps
+        try {
+            Class<?> c = Class.forName(
+                    "com.android.server.wm.MiuiFixedOrientationController", false, cl);
+            Method m = findMethod(c, "shouldDisableFixedOrientation", String.class);
+            if (m != null) {
+                hook(m).setId("penkit-fixed-orientation")
+                        .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+                        .intercept(chain -> sDisableFixedOrientation ? Boolean.TRUE : chain.proceed());
+                log(Log.INFO, TAG, "hooked MiuiFixedOrientationController#shouldDisableFixedOrientation");
+            }
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "no fixed orientation controller: " + t);
+        }
+    }
+
     private void applyPenEnable() {
         if (!sPenEnable) {
             return;
@@ -264,6 +350,10 @@ public final class PenKitModule extends XposedModule {
         sSlotSingle = b.getBoolean("slot_single", true);
         sSlotDouble = b.getBoolean("slot_double", true);
         sSlotLong = b.getBoolean("slot_long", true);
+        sNoMagicPointer = b.getBoolean("no_magic_pointer", false);
+        sRestoreEsc = b.getBoolean("restore_esc", false);
+        sFingerNum4 = b.getBoolean("finger_num_4", false);
+        sDisableFixedOrientation = b.getBoolean("disable_fixed_orientation", false);
         log(Log.INFO, TAG, "config pen=" + sPenEnable + " scribe=" + sScribeEnable
                 + " ignoreGesture=" + sIgnoreKeyGesture + " ver=" + sDriverVersion);
     }

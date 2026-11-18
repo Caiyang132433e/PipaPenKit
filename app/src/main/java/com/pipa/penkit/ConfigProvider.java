@@ -45,6 +45,10 @@ public final class ConfigProvider extends ContentProvider {
             out.putBoolean("slot_single", p.getBoolean("slot_single", true));
             out.putBoolean("slot_double", p.getBoolean("slot_double", true));
             out.putBoolean("slot_long", p.getBoolean("slot_long", true));
+            out.putBoolean("no_magic_pointer", p.getBoolean("sys_no_magic_pointer", false));
+            out.putBoolean("restore_esc", p.getBoolean("sys_restore_esc", false));
+            out.putBoolean("finger_num_4", p.getBoolean("sys_finger_num_4", false));
+            out.putBoolean("disable_fixed_orientation", p.getBoolean("sys_disable_fixed_orientation", false));
             return out;
         }
         if (!"target".equals(method)) {
