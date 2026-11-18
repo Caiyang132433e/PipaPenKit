@@ -146,7 +146,7 @@ fun HomeScreen() {
             SectionCard("外观", "桌面入口") {
                 SwitchRow(
                     title = "显示桌面图标",
-                    subtitle = "隐藏后可用拨号暗码重新打开",
+                    subtitle = "隐藏后可用浏览器打开 pipa://open，或下拉快捷开关",
                     checked = iconVisible
                 ) {
                     iconVisible = it
@@ -154,13 +154,13 @@ fun HomeScreen() {
                     if (!it) {
                         Toast.makeText(
                             ctx,
-                            "图标已隐藏：拨号盘输入 *#*#4242#*#* 可重新打开",
+                            "图标已隐藏：浏览器访问 pipa://open，或下拉通知栏点 PipaPenKit 磁贴",
                             Toast.LENGTH_LONG
                         ).show()
                     }
                 }
                 Text(
-                    "隐藏后的入口：拨号盘输入 *#*#4242#*#*",
+                    "隐藏后的入口：① 浏览器打开 pipa://open ② 快捷设置磁贴「PipaPenKit」",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
