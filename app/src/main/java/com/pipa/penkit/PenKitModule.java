@@ -78,7 +78,7 @@ public final class PenKitModule extends XposedModule {
                             return 0L;
                         });
                 log(Log.INFO, TAG, "hooked " + className + "#" + method.getName());
-                heartbeat(getSystemContext());
+                heartbeatLater(getSystemContext());
                 return;
             } catch (Throwable t) {
                 log(Log.WARN, TAG, "cannot hook " + className + ": " + t);
@@ -98,6 +98,19 @@ public final class PenKitModule extends XposedModule {
             }
         }
         return null;
+    }
+
+    /** Provider calls fail while system_server is still starting, so retry once it is up. */
+    private void heartbeatLater(Context ctx) {
+        if (ctx == null) {
+            return;
+        }
+        try {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(() -> heartbeat(ctx), 20000L);
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "cannot schedule heartbeat", t);
+        }
     }
 
     private void heartbeat(Context ctx) {
