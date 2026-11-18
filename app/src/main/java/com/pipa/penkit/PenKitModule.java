@@ -56,7 +56,7 @@ public final class PenKitModule extends XposedModule {
         String process = param.getProcessName();
         log(Log.INFO, TAG, "loaded in " + process + " systemServer=" + param.isSystemServer());
         if (!param.isSystemServer() && "com.miui.home".equals(process)) {
-            installHomeHooks(param.getClassLoader());
+            installHomeHooks(ClassLoader.getSystemClassLoader());
         }
     }
 
