@@ -3,12 +3,12 @@ package com.pipa.penkit
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +21,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -76,14 +79,16 @@ fun HomeScreen() {
     var slotSingle by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_SINGLE, true)) }
     var slotDouble by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_DOUBLE, true)) }
     var slotLong by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SLOT_LONG, true)) }
-    var noMagicPointer by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_NO_MAGIC_POINTER, false)) }
-    var restoreEsc by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_RESTORE_ESC, false)) }
-    var fingerNum4 by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_FINGER_NUM_4, false)) }
-    var disableFixedOrientation by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, false)) }
+
     var penEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_PEN_ENABLE, true)) }
     var scribeEnable by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_SCRIBE_ENABLE, true)) }
     var ignoreGesture by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_IGNORE_KEY_GESTURE, false)) }
     var driverVersion by remember { mutableStateOf(prefs.getInt(Prefs.KEY_DRIVER_VERSION, 2)) }
+
+    var noMagicPointer by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_NO_MAGIC_POINTER, false)) }
+    var restoreEsc by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_RESTORE_ESC, false)) }
+    var fingerNum4 by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_FINGER_NUM_4, false)) }
+    var disableFixedOrientation by remember { mutableStateOf(prefs.getBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, false)) }
 
     var iconVisible by remember { mutableStateOf(LauncherIcon.isVisible(ctx)) }
     var logs by remember { mutableStateOf(LogStore.all(ctx)) }
@@ -97,7 +102,10 @@ fun HomeScreen() {
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = {
@@ -110,8 +118,10 @@ fun HomeScreen() {
                         )
                     }
                 },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         }
@@ -120,8 +130,8 @@ fun HomeScreen() {
             Modifier
                 .fillMaxSize()
                 .padding(pad)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             StatusCard(heartbeat)
@@ -131,7 +141,7 @@ fun HomeScreen() {
                     relay = it
                     prefs.edit().putBoolean(Prefs.KEY_RELAY_ENABLED, it).apply()
                 }
-                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                HorizontalDivider()
                 SlotTarget(
                     "单击（F20）", tSingle, slotSingle,
                     { slotSingle = it; prefs.edit().putBoolean(Prefs.KEY_SLOT_SINGLE, it).apply() },
@@ -162,7 +172,7 @@ fun HomeScreen() {
                     ignoreGesture = it
                     prefs.edit().putBoolean(Prefs.KEY_IGNORE_KEY_GESTURE, it).apply()
                 }
-                HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                HorizontalDivider()
                 VersionSelector(driverVersion) {
                     driverVersion = it
                     prefs.edit().putInt(Prefs.KEY_DRIVER_VERSION, it).apply()
@@ -187,6 +197,7 @@ fun HomeScreen() {
                     prefs.edit().putBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, it).apply()
                 }
             }
+
             SectionCard("外观", "桌面入口") {
                 SwitchRow("显示桌面图标", "隐藏后从 LSPosed 模块页进入", iconVisible) {
                     iconVisible = it
@@ -195,21 +206,45 @@ fun HomeScreen() {
             }
 
             SectionCard("日志", "模块通过广播回传") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("最近事件", style = MaterialTheme.typography.labelMedium)
-                    TextButton(onClick = { LogStore.clear(ctx); logs = emptyList() }) { Text("清空") }
+                Column(Modifier.fillMaxWidth()) {
+                    logs.take(14).forEach {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
+                    if (logs.isEmpty()) {
+                        Text(
+                            "暂无事件",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                if (logs.isEmpty()) {
-                    Text(
-                        "暂无事件",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    logs.take(14).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                }
+                TextButton(onClick = { LogStore.clear(ctx); logs = emptyList() }) { Text("清空日志") }
             }
         }
+    }
+}
+
+@Composable
+fun SlotTarget(
+    label: String,
+    value: String,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    onChange: (String) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(Modifier.weight(1f)) {
+            TargetSelector(label, value, onChange)
+        }
+        Switch(checked = enabled, onCheckedChange = onEnabledChange)
     }
 }
 
@@ -304,16 +339,17 @@ fun VersionSelector(value: Int, onChange: (Int) -> Unit) {
 
 @Composable
 fun StatusCard(heartbeat: Long) {
-    val text = if (heartbeat <= 0L) {
-        "未上报 —— 检查 LSPosed 是否启用、作用域是否含 system"
-    } else {
+    val connected = heartbeat > 0L
+    val text = if (connected) {
         "已连接 · " + SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date(heartbeat))
+    } else {
+        "未上报 —— 检查 LSPosed 是否启用、作用域是否含 system"
     }
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (heartbeat > 0L) MaterialTheme.colorScheme.secondaryContainer
-            else MaterialTheme.colorScheme.surfaceContainerHighest
+            containerColor = if (connected) MaterialTheme.colorScheme.secondaryContainer
+            else MaterialTheme.colorScheme.errorContainer
         )
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -327,10 +363,12 @@ fun StatusCard(heartbeat: Long) {
 fun SectionCard(title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column {
+        Column(Modifier.padding(vertical = 8.dp)) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (subtitle != null) {
                     Text(
@@ -340,42 +378,29 @@ fun SectionCard(title: String, subtitle: String? = null, content: @Composable Co
                     )
                 }
             }
-            content()
+            Column(
+                Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                content()
+            }
         }
     }
 }
 
 @Composable
 fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+    ListItem(
+        headlineContent = { Text(title, style = MaterialTheme.typography.bodyLarge) },
+        supportingContent = {
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-@Composable
-fun SlotTarget(
-    label: String,
-    value: String,
-    enabled: Boolean,
-    onEnabledChange: (Boolean) -> Unit,
-    onChange: (String) -> Unit
-) {
-    Row(
-        Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(Modifier.weight(1f)) {
-            TargetSelector(label, value, onChange)
-        }
-        Switch(checked = enabled, onCheckedChange = onEnabledChange)
-    }
+        },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        modifier = Modifier.clickable { onChange(!checked) }
+    )
 }
