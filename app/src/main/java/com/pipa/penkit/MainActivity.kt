@@ -197,7 +197,8 @@ fun HomeScreen() {
                 SwitchRow("修复三指手势被屏蔽", "按系统设置恢复三指/四指手势", fixGestureFilter) {
                     fixGestureFilter = it
                     prefs.edit().putBoolean(Prefs.KEY_FIX_GESTURE_FILTER, it).apply()
-                }                SwitchRow("禁用固定屏幕方向", "对所有应用生效", disableFixedOrientation) {
+                }
+                SwitchRow("禁用固定屏幕方向", "对所有应用生效", disableFixedOrientation) {
                     disableFixedOrientation = it
                     prefs.edit().putBoolean(Prefs.KEY_DISABLE_FIXED_ORIENTATION, it).apply()
                 }
