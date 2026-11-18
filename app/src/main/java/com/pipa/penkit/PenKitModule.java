@@ -58,8 +58,21 @@ public final class PenKitModule extends XposedModule {
                         .intercept(chain -> {
                             KeyEvent event = (KeyEvent) chain.getArg(1);
                             int code = event.getKeyCode();
-                            boolean isTailKey = code == KEY_F20 || code == KEY_F19 || code == KEY_F18;
-                            if (!isTailKey || event.getAction() != KeyEvent.ACTION_DOWN) {
+                            int scan = event.getScanCode();
+                            // Android maps F13-F24 through keylayout; Generic.kl only defines F1-F12,
+                            // so getKeyCode() may be UNKNOWN while getScanCode() keeps the raw evdev code.
+                            boolean isTailKey = scan == KEY_F20 || scan == KEY_F19 || scan == KEY_F18
+                                    || code == KEY_F20 || code == KEY_F19 || code == KEY_F18;
+                            if (!isTailKey) {
+                                if (scan >= 183 && scan <= 194) {
+                                    log(Log.INFO, TAG, "F-key candidate scan=" + scan
+                                            + " code=" + code + " action=" + event.getAction());
+                                }
+                                return chain.proceed();
+                            }
+                            log(Log.INFO, TAG, "tail key scan=" + scan + " code=" + code
+                                    + " action=" + event.getAction());
+                            if (event.getAction() != KeyEvent.ACTION_DOWN) {
                                 return chain.proceed();
                             }
                             Context ctx = resolveContext(chain.getThisObject());
@@ -67,7 +80,7 @@ public final class PenKitModule extends XposedModule {
                                 log(Log.WARN, TAG, "tail key but context is null");
                                 return chain.proceed();
                             }
-                            int slot = code == KEY_F20 ? 1 : code == KEY_F19 ? 2 : 3;
+                            int slot = (scan == KEY_F20 || code == KEY_F20) ? 1 : (scan == KEY_F19 || code == KEY_F19) ? 2 : 3;
                             Bundle enabled = callProvider(ctx, "enabled", null);
                             boolean on = enabled == null || enabled.getBoolean("enabled", true);
                             if (!on) {
