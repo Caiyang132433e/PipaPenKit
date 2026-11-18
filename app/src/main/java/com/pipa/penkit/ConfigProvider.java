@@ -7,7 +7,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 
-/** Exposes quick-key config to the system_server hook. */
+/** Exposes quick-key config and receives hook heartbeats from system_server. */
 public final class ConfigProvider extends ContentProvider {
 
     public static final String AUTHORITY = "com.pipa.penkit.config";
@@ -23,6 +23,13 @@ public final class ConfigProvider extends ContentProvider {
         Bundle out = new Bundle();
         Context ctx = getContext();
         if (ctx == null) {
+            return out;
+        }
+        if ("heartbeat".equals(method)) {
+            long now = System.currentTimeMillis();
+            ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit().putLong("hook_heartbeat", now).apply();
+            out.putLong("at", now);
             return out;
         }
         if ("enabled".equals(method)) {

@@ -37,7 +37,8 @@ public final class PenKitModule extends XposedModule {
 
     @Override
     public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
-        log(Log.INFO, TAG, "loaded in " + param.getProcessName());
+        log(Log.INFO, TAG, "loaded in " + param.getProcessName()
+                + " systemServer=" + param.isSystemServer());
     }
 
     @Override
@@ -45,11 +46,12 @@ public final class PenKitModule extends XposedModule {
         for (String className : WINDOW_MANAGER_CLASSES) {
             try {
                 Class<?> cls = Class.forName(className, false, param.getClassLoader());
-                Method method = cls.getDeclaredMethod(
-                        "interceptKeyBeforeDispatching",
-                        android.os.IBinder.class,
-                        KeyEvent.class,
-                        int.class);
+                Method method = findMethod(cls, "interceptKeyBeforeDispatching",
+                        android.os.IBinder.class, KeyEvent.class, int.class);
+                if (method == null) {
+                    log(Log.WARN, TAG, className + " found but method missing");
+                    continue;
+                }
                 hook(method)
                         .setId("penkit-quickkey")
                         .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
@@ -62,16 +64,21 @@ public final class PenKitModule extends XposedModule {
                             }
                             Context ctx = resolveContext(chain.getThisObject());
                             if (ctx == null) {
-                                return chain.proceed();
-                            }
-                            if (!isEnabled(ctx)) {
+                                log(Log.WARN, TAG, "tail key but context is null");
                                 return chain.proceed();
                             }
                             int slot = code == KEY_F20 ? 1 : code == KEY_F19 ? 2 : 3;
+                            Bundle enabled = callProvider(ctx, "enabled", null);
+                            boolean on = enabled == null || enabled.getBoolean("enabled", true);
+                            if (!on) {
+                                report(ctx, "slot " + slot + ": 映射未启用");
+                                return chain.proceed();
+                            }
                             launch(ctx, slot);
                             return 0L;
                         });
-                log(Log.INFO, TAG, "hooked " + className);
+                log(Log.INFO, TAG, "hooked " + className + "#" + method.getName());
+                heartbeat(getSystemContext());
                 return;
             } catch (Throwable t) {
                 log(Log.WARN, TAG, "cannot hook " + className + ": " + t);
@@ -80,8 +87,56 @@ public final class PenKitModule extends XposedModule {
         log(Log.ERROR, TAG, "no PhoneWindowManager hook installed");
     }
 
+    private static Method findMethod(Class<?> cls, String name, Class<?>... params) {
+        Class<?> c = cls;
+        while (c != null) {
+            try {
+                Method m = c.getDeclaredMethod(name, params);
+                return m;
+            } catch (NoSuchMethodException ignored) {
+                c = c.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private void heartbeat(Context ctx) {
+        if (ctx == null) {
+            return;
+        }
+        try {
+            callProvider(ctx, "heartbeat", null);
+            report(ctx, "hook 已安装");
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "heartbeat failed", t);
+        }
+    }
+
+    private static Context getSystemContext() {
+        try {
+            Class<?> at = Class.forName("android.app.ActivityThread");
+            Method current = at.getDeclaredMethod("currentActivityThread");
+            Object thread = current.invoke(null);
+            Method getSystemContext = at.getDeclaredMethod("getSystemContext");
+            return (Context) getSystemContext.invoke(thread);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Bundle callProvider(Context ctx, String method, String arg) {
+        try {
+            return ctx.getContentResolver().call(
+                    Uri.parse("content://" + AUTHORITY), method, arg, null);
+        } catch (Throwable t) {
+            log(Log.WARN, TAG, "provider call failed: " + method, t);
+            return null;
+        }
+    }
+
     private void launch(Context ctx, int slot) {
-        String target = readString(ctx, "target", String.valueOf(slot));
+        Bundle b = callProvider(ctx, "target", String.valueOf(slot));
+        String target = b == null ? null : b.getString("target");
         if (target == null || target.trim().isEmpty()) {
             report(ctx, "slot " + slot + ": 未配置目标");
             return;
@@ -104,27 +159,6 @@ public final class PenKitModule extends XposedModule {
             report(ctx, "slot " + slot + " -> " + target);
         } catch (Throwable t) {
             report(ctx, "slot " + slot + " 启动失败: " + t);
-        }
-    }
-
-    private boolean isEnabled(Context ctx) {
-        try {
-            Bundle b = ctx.getContentResolver().call(
-                    Uri.parse("content://" + AUTHORITY), "enabled", null, null);
-            return b == null || b.getBoolean("enabled", true);
-        } catch (Throwable t) {
-            return true;
-        }
-    }
-
-    private String readString(Context ctx, String method, String arg) {
-        try {
-            Bundle b = ctx.getContentResolver().call(
-                    Uri.parse("content://" + AUTHORITY), method, arg, null);
-            return b == null ? null : b.getString("target");
-        } catch (Throwable t) {
-            log(Log.WARN, TAG, "provider call failed", t);
-            return null;
         }
     }
 
